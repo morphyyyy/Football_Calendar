@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Football Game Calendar</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        background-color: #121212; /* keep your dark theme */
+        color: #ddd;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    #calendar-container {
+        height: 100vh; /* fill viewport height */
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        max-width: 100vw;
+        margin: 0 auto;
+    }
+
+    #calendar thead {
+        display: none;
+    }
+
+    #calendar-container > div {
+        flex-shrink: 0;
+    }
+
+    .game-time {
+        font-family: 'Poppins', sans-serif;
+        user-select: none;
+        font-size: 0.75rem;
+        color: #aaa;
+        text-align: center;
+        margin-top: 2px;
+    }
+
+    h2#cal-month-year {
+        font-weight: 600;
+        font-size: 1.75rem;
+        color: #ddd;
+        text-align: center;
+        margin-bottom: 12px;
+    }
+
+    table#calendar {
+        table-layout: fixed;
+        width: 100%;
+        height: 100%; /* fill container vertically */
+        background-color: #1e1e1e;
+        border: 1px solid #333;
+        border-collapse: collapse;
+        flex-grow: 1;
+    }
+
+    table#calendar th, table#calendar td {
+        border: 1px solid #333;
+        background-color: #1e1e1e;
+        color: #ddd;
+        vertical-align: top;
+        padding: 5px;
+        height: calc((100vh - 100px) / 6); /* roughly divide height for 6 rows */
+    }
+
+    .day-number {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .game-icon-pair {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 5px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        color: #ddd;
+    }
+
+    .game-icon-pair:hover {
+        transform: scale(1.05);
+        color: #666;
+    }
+
+    .team-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 4px;
+        object-fit: contain;
+        background: transparent;
+        padding: 2px;
+        filter: drop-shadow(0 0 3px rgba(255, 255, 255, .333));
+    }
+
+    .at-symbol {
+        margin: 0 4px;
+        font-weight: bold;
+        color: #666;
+    }
+
+    .btn {
+        border-radius: 20px;
+    }
+
+    .btn-outline-primary {
+        color: #ddd;
+        border-color: #333;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #333;
+        color: #ddd;
+    }
+
+    .modal-content {
+        background-color: #1e1e1e;
+        color: #ddd;
+        border: 1px solid #333;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #333;
+        justify-content: center !important;
+    }
+
+    .modal-title {
+        color: #ddd;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        font-size: 1.25rem;
+        text-align: center;
+    }
+
+    .modal-title img {
+        height: 40px;
+        border-radius: 5px;
+    }
+
+    .modal-body img {
+        border-radius: 6px;
+    }
+
+    @media (max-width: 768px) {
+        .team-icon {
+            width: 20px;
+            height: 20px;
+            filter: drop-shadow(0 0 2px white);
+        }
+        .modal-body img {
+            height: 40px;
+            filter: drop-shadow(0 0 4px white);
+        }
+    }
+  </style>
+
+</head>
+<body>
+<div id="calendar-container">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <button id="cal-prev" class="btn btn-outline-primary btn-sm">&laquo; Prev</button>
+    <h2 id="cal-month-year" class="mb-0">Loading...</h2>
+    <button id="cal-next" class="btn btn-outline-primary btn-sm">Next &raquo;</button>
+  </div>
+  <table class="table text-center" id="calendar">
+    <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr></thead>
+    <tbody id="cal-body"></tbody>
+  </table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="gameModal" tabindex="-1" aria-labelledby="gameModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="gameModalLabel" class="modal-title"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const teams = [
+  { abbr:'no', league:'nfl' },
+  { abbr:'lsu', league:'college-football' },
+  { abbr:'tuln', league:'college-football' }
+];
+const season = 2025;
+
+async function fetchTeamSchedule(team, seasontype){
+  const url = `https://site.api.espn.com/apis/site/v2/sports/football/${team.league}/teams/${team.abbr}/schedule?season=${season}&seasontype=${seasontype}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.events.map(ev => {
+    const comp = ev.competitions[0].competitors;
+    const home = comp.find(c=>c.homeAway==='home');
+    const away = comp.find(c=>c.homeAway==='away');
+    const isoDate = ev.date;
+    const dt = new Date(isoDate);
+    const timeCST = dt.toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true });
+
+    return {
+        id: ev.id,
+        date: isoDate.split("T")[0],
+        time: timeCST,
+        location: ev.competitions[0].venue.fullName,
+        tv: ev.broadcasts?.[0]?.media?.shortName || '—',
+        homeTeam: home.team.displayName, homeAbv: home.team.abbreviation,
+        awayTeam: away.team.displayName, awayAbv: away.team.abbreviation,
+        homeLogo: home.team.logos[0].href, awayLogo: away.team.logos[0].href
+    };
+  });
+}
+
+async function getAllGames(){
+  const all = [];
+  for(let t of teams){
+    const pre = await fetchTeamSchedule(t, 1);
+    const reg = await fetchTeamSchedule(t, 2);
+    all.push(...pre, ...reg);
+  }
+  return all;
+}
+
+function openGameDetails(game) {
+  $('#gameModalLabel').html(`
+    <img src="${game.awayLogo}" alt="${game.awayTeam}">
+    <span>${game.awayTeam}</span>
+    <span style="margin: 0 8px; font-weight: 900;">@</span>
+    <img src="${game.homeLogo}" alt="${game.homeTeam}">
+    <span>${game.homeTeam}</span>
+  `);
+  $('#modal-body').html(`
+    <p><strong>Date:</strong> ${formatDateVerbose(game.date)}</p>
+    <p><strong>Time (CST):</strong> ${game.time}</p>
+    <p><strong>Location:</strong> ${game.location}</p>
+  `);
+  const modal = new bootstrap.Modal(document.getElementById('gameModal'));
+  modal.show();
+}
+
+let currentMonth = new Date();
+let games = [];
+
+function renderCalendar(){
+  const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
+  $('#cal-month-year').text(currentMonth.toLocaleString('default',{month:'long',year:'numeric'}));
+  const firstDay = new Date(y,m,1).getDay();
+  const days = new Date(y,m+1,0).getDate();
+  $('#cal-body').empty();
+  let row = $('<tr></tr>');
+  for(let i=0;i<firstDay;i++) row.append('<td></td>');
+  for(let d=1; d<=days; d++){
+    const dateStr = new Date(y,m,d).toISOString().split('T')[0];
+    const cell = $('<td></td>').append(`<div class="day-number">${d}</div>`);
+    const todays = games
+      .filter(g => g.date === dateStr)
+      .sort((a,b) => {
+        const parseTime = t => {
+          const [time, mod] = t.split(' ');
+          let [h,m] = time.split(':').map(Number);
+          if(mod === 'PM' && h !== 12) h += 12;
+          if(mod === 'AM' && h === 12) h = 0;
+          return h * 60 + m;
+        };
+        return parseTime(a.time) - parseTime(b.time);
+      });
+    todays.forEach(g=>{
+      const pair = $(`<div class="game-icon-pair" title="${g.awayTeam} @ ${g.homeTeam}"></div>`)
+        .append(`<img src="${g.awayLogo}" class="team-icon">`)
+        .append('<span class="at-symbol">@</span>')
+        .append(`<img src="${g.homeLogo}" class="team-icon">`)
+        .on('click',()=>openGameDetails(g));
+      cell.append(pair);
+      cell.append(`<div class="game-time">${g.time}</div>`);
+    });
+    row.append(cell);
+    if((firstDay+d)%7===0||d===days){ $('#cal-body').append(row); row=$('<tr></tr>'); }
+  }
+}
+
+function formatDateVerbose(dateStr) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const dayName = days[date.getDay()];
+  const monthName = date.toLocaleString('default', { month: 'long' });
+  const dayNum = date.getDate();
+  const yearNum = date.getFullYear();
+
+  function nth(d) {
+    if (d > 3 && d < 21) return 'th';
+    switch (d % 10) {
+      case 1: return "st";
+      case 2: return "nd";
+      case 3: return "rd";
+      default: return "th";
+    }
+  }
+
+  return `${dayName}, ${monthName} ${dayNum}${nth(dayNum)}, ${yearNum}`;
+}
+
+$(async function(){
+  games = await getAllGames();
+  renderCalendar();
+  $('#cal-prev').click(()=>{ currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); });
+  $('#cal-next').click(()=>{ currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); });
+});
+</script>
+</body>
+</html>
