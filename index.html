@@ -12,6 +12,7 @@
         background-color: #121212; /* keep your dark theme */
         color: #ddd;
         font-family: 'Poppins', sans-serif;
+        overflow-x: hidden; /* prevent horizontal scroll on swipe */
     }
 
     #calendar-container {
@@ -56,6 +57,7 @@
         border: 1px solid #333;
         border-collapse: collapse;
         flex-grow: 1;
+        touch-action: pan-y; /* allow vertical scroll on touch devices */
     }
 
     table#calendar th, table#calendar td {
@@ -159,7 +161,6 @@
         }
     }
   </style>
-
 </head>
 <body>
 <div id="calendar-container">
@@ -198,28 +199,33 @@ const teams = [
 const season = 2025;
 
 async function fetchTeamSchedule(team, seasontype){
-  const url = `https://site.api.espn.com/apis/site/v2/sports/football/${team.league}/teams/${team.abbr}/schedule?season=${season}&seasontype=${seasontype}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.events.map(ev => {
-    const comp = ev.competitions[0].competitors;
-    const home = comp.find(c=>c.homeAway==='home');
-    const away = comp.find(c=>c.homeAway==='away');
-    const isoDate = ev.date;
-    const dt = new Date(isoDate);
-    const timeCST = dt.toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true });
+  try {
+    const url = `https://site.api.espn.com/apis/site/v2/sports/football/${team.league}/teams/${team.abbr}/schedule?season=${season}&seasontype=${seasontype}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.events.map(ev => {
+      const comp = ev.competitions[0].competitors;
+      const home = comp.find(c=>c.homeAway==='home');
+      const away = comp.find(c=>c.homeAway==='away');
+      const isoDate = ev.date;
+      const dt = new Date(isoDate);
+      const timeCST = dt.toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true });
 
-    return {
-        id: ev.id,
-        date: isoDate.split("T")[0],
-        time: timeCST,
-        location: ev.competitions[0].venue.fullName,
-        tv: ev.broadcasts?.[0]?.media?.shortName || '—',
-        homeTeam: home.team.displayName, homeAbv: home.team.abbreviation,
-        awayTeam: away.team.displayName, awayAbv: away.team.abbreviation,
-        homeLogo: home.team.logos[0].href, awayLogo: away.team.logos[0].href
-    };
-  });
+      return {
+          id: ev.id,
+          date: isoDate.split("T")[0],
+          time: timeCST,
+          location: ev.competitions[0].venue.fullName,
+          tv: ev.broadcasts?.[0]?.media?.shortName || '—',
+          homeTeam: home.team.displayName, homeAbv: home.team.abbreviation,
+          awayTeam: away.team.displayName, awayAbv: away.team.abbreviation,
+          homeLogo: home.team.logos[0].href, awayLogo: away.team.logos[0].href
+      };
+    });
+  } catch (err) {
+    console.error('Failed to fetch schedule for', team.abbr, err);
+    return [];
+  }
 }
 
 async function getAllGames(){
@@ -315,8 +321,36 @@ function formatDateVerbose(dateStr) {
 $(async function(){
   games = await getAllGames();
   renderCalendar();
-  $('#cal-prev').click(()=>{ currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); });
-  $('#cal-next').click(()=>{ currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); });
+
+  $('#cal-prev').click(() => {
+    currentMonth.setMonth(currentMonth.getMonth() - 1);
+    renderCalendar();
+  });
+
+  $('#cal-next').click(() => {
+    currentMonth.setMonth(currentMonth.getMonth() + 1);
+    renderCalendar();
+  });
+
+  // Swipe support for mobile
+  let touchStartX = 0;
+  let touchEndX = 0;
+
+  document.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].screenX;
+  });
+
+  document.addEventListener('touchend', e => {
+    touchEndX = e.changedTouches[0].screenX;
+    const dx = touchEndX - touchStartX;
+    if (Math.abs(dx) > 50) {
+      if (dx < 0) {
+        $('#cal-next').click();
+      } else {
+        $('#cal-prev').click();
+      }
+    }
+  });
 });
 </script>
 </body>
