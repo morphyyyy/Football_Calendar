@@ -5,162 +5,211 @@
   <title>Football Game Calendar</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-  <style>
-    html, body {
-        height: 100%;
-        margin: 0;
-        background-color: #121212; /* keep your dark theme */
-        color: #ddd;
-        font-family: 'Poppins', sans-serif;
-        overflow-x: hidden; /* prevent horizontal scroll on swipe */
-    }
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    background-color: #121212;
+    color: #ddd;
+    font-family: 'Poppins', sans-serif;
+    overflow: hidden;
+  }
 
-    #calendar-container {
-        height: 100vh; /* fill viewport height */
-        display: flex;
-        flex-direction: column;
-        padding: 20px;
-        max-width: 100vw;
-        margin: 0 auto;
-    }
+  #calendar-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    max-width: 100vw;
+    margin: 0 auto;
+  }
 
-    #calendar thead {
-        display: none;
-    }
+  #calendar thead {
+    display: none;
+  }
 
-    #calendar-container > div {
-        flex-shrink: 0;
-    }
+  #calendar-container > div {
+    flex-shrink: 0;
+  }
 
-    .game-time {
-        font-family: 'Poppins', sans-serif;
-        user-select: none;
-        font-size: 0.75rem;
-        color: #aaa;
-        text-align: center;
-        margin-top: 2px;
-    }
+  h2#cal-month-year {
+    font-weight: 600;
+    font-size: 1.75rem;
+    color: #ddd;
+    text-align: center;
+    margin-bottom: 12px;
+  }
 
-    h2#cal-month-year {
-        font-weight: 600;
-        font-size: 1.75rem;
-        color: #ddd;
-        text-align: center;
-        margin-bottom: 12px;
-    }
+  table#calendar {
+    table-layout: fixed;
+    width: 100%;
+    height: 100%;
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-collapse: collapse;
+    flex-grow: 1;
+    touch-action: pan-y;
+  }
 
-    table#calendar {
-        table-layout: fixed;
-        width: 100%;
-        height: 100%; /* fill container vertically */
-        background-color: #1e1e1e;
-        border: 1px solid #333;
-        border-collapse: collapse;
-        flex-grow: 1;
-        touch-action: pan-y; /* allow vertical scroll on touch devices */
-    }
+  table#calendar th, table#calendar td {
+    border: 1px solid #333;
+    background-color: #1e1e1e;
+    color: #ddd;
+    vertical-align: top;
+  }
 
-    table#calendar th, table#calendar td {
-        border: 1px solid #333;
-        background-color: #1e1e1e;
-        color: #ddd;
-        vertical-align: top;
-        padding: 5px;
-        height: calc((100vh - 100px) / 6); /* roughly divide height for 6 rows */
-    }
+  .day-number {
+    font-weight: 600;
+  }
 
-    .day-number {
-        font-weight: 600;
-        font-size: 0.9rem;
+  .game-icon-pair {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    color: #ddd;
+  }
+
+  .game-icon-pair:hover {
+    transform: scale(1.05);
+    color: #666;
+  }
+
+  .team-icon {
+    border-radius: 4px;
+    object-fit: contain;
+    background: transparent;
+    padding: 2px;
+    filter: drop-shadow(0 0 2px white);
+  }
+
+  .at-symbol {
+    font-weight: bold;
+    color: #999;
+  }
+
+  .game-time {
+    font-family: 'Poppins', sans-serif;
+    user-select: none;
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  .btn {
+    border-radius: 20px;
+  }
+
+  .btn-outline-primary {
+    color: #ddd;
+    border-color: #333;
+  }
+
+  .btn-outline-primary:hover {
+    background-color: #333;
+    color: #ddd;
+  }
+
+  .modal-content {
+    background-color: #1e1e1e;
+    color: #ddd;
+    border: 1px solid #333;
+  }
+
+  .modal-header {
+    border-bottom: 1px solid #333;
+    justify-content: center !important;
+  }
+
+  .modal-title {
+    color: #ddd;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    font-size: 1.25rem;
+    text-align: center;
+  }
+
+  .modal-title img {
+    height: 40px;
+    border-radius: 5px;
+  }
+
+  .modal-body img {
+    border-radius: 6px;
+  }
+
+  /* === Desktop Styles === */
+  @media (min-width: 769px) {
+    .team-icon {
+      width: 26px;
+      height: 26px;
+      filter: drop-shadow(0 0 2px white);
     }
 
     .game-icon-pair {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-top: 5px;
-        cursor: pointer;
-        transition: transform 0.2s ease;
-        color: #ddd;
+      flex-direction: row;
+      font-size: 0.75rem;
+      margin-top: 5px;
     }
 
-    .game-icon-pair:hover {
-        transform: scale(1.05);
-        color: #666;
-    }
-
-    .team-icon {
-        width: 26px;
-        height: 26px;
-        border-radius: 4px;
-        object-fit: contain;
-        background: transparent;
-        padding: 2px;
-        filter: drop-shadow(0 0 3px rgba(255, 255, 255, .333));
+    .game-time {
+      font-size: 0.75rem;
     }
 
     .at-symbol {
-        margin: 0 4px;
-        font-weight: bold;
-        color: #666;
+      display: inline;
+      margin: 0 4px;
     }
 
-    .btn {
-        border-radius: 20px;
+    table#calendar td {
+      padding: 5px;
+      height: calc((100vh - 100px) / 6);
     }
 
-    .btn-outline-primary {
-        color: #ddd;
-        border-color: #333;
+    .day-number {
+      font-size: 0.9rem;
+    }
+  }
+
+  /* === Mobile Styles === */
+  @media (max-width: 768px) {
+    .team-icon {
+      width: 18px;
+      height: 18px;
+      filter: drop-shadow(0 0 2px white);
     }
 
-    .btn-outline-primary:hover {
-        background-color: #333;
-        color: #ddd;
+    .game-icon-pair {
+      flex-direction: row;
+      font-size: 0.65rem;
+      margin-top: 2px;
     }
 
-    .modal-content {
-        background-color: #1e1e1e;
-        color: #ddd;
-        border: 1px solid #333;
+    .game-time {
+      font-size: 0.6rem;
     }
 
-    .modal-header {
-        border-bottom: 1px solid #333;
-        justify-content: center !important;
+    .at-symbol {
+      display: none;
     }
 
-    .modal-title {
-        color: #ddd;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-weight: 700;
-        font-size: 1.25rem;
-        text-align: center;
+    table#calendar td {
+      padding: 2px;
+      height: 48px;
     }
 
-    .modal-title img {
-        height: 40px;
-        border-radius: 5px;
+    .day-number {
+      font-size: 0.75rem;
     }
 
     .modal-body img {
-        border-radius: 6px;
+      height: 40px;
+      filter: drop-shadow(0 0 4px white);
     }
-
-    @media (max-width: 768px) {
-        .team-icon {
-            width: 20px;
-            height: 20px;
-            filter: drop-shadow(0 0 2px white);
-        }
-        .modal-body img {
-            height: 40px;
-            filter: drop-shadow(0 0 4px white);
-        }
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
 <div id="calendar-container">
@@ -355,3 +404,4 @@ $(async function(){
 </script>
 </body>
 </html>
+
