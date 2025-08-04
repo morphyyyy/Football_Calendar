@@ -208,5 +208,23 @@ function handleGesture() {
   }
 }
 </script>
+<script>
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', e => {
+  touchStartX = e.changedTouches[0].screenX;
+});
+
+document.addEventListener('touchend', e => {
+  touchEndX = e.changedTouches[0].screenX;
+  const dx = touchEndX - touchStartX;
+  if (Math.abs(dx) > 50) {
+    if (dx < 0) document.getElementById('cal-next').click();
+    else document.getElementById('cal-prev').click();
+  }
+});
+</script>
 </body>
 </html>
+
