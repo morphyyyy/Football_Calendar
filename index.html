@@ -9,13 +9,14 @@
     html, body {
         height: 100%;
         margin: 0;
-        background-color: #121212; /* keep your dark theme */
+        background-color: #121212;
         color: #ddd;
         font-family: 'Poppins', sans-serif;
+        overflow: hidden;
     }
 
     #calendar-container {
-        height: 100vh; /* fill viewport height */
+        height: 100vh;
         display: flex;
         flex-direction: column;
         padding: 20px;
@@ -51,11 +52,12 @@
     table#calendar {
         table-layout: fixed;
         width: 100%;
-        height: 100%; /* fill container vertically */
+        height: 100%;
         background-color: #1e1e1e;
         border: 1px solid #333;
         border-collapse: collapse;
         flex-grow: 1;
+        touch-action: pan-y;
     }
 
     table#calendar th, table#calendar td {
@@ -64,7 +66,7 @@
         color: #ddd;
         vertical-align: top;
         padding: 5px;
-        height: calc((100vh - 100px) / 6); /* roughly divide height for 6 rows */
+        height: calc((100vh - 100px) / 6);
     }
 
     .day-number {
@@ -94,13 +96,13 @@
         object-fit: contain;
         background: transparent;
         padding: 2px;
-        filter: drop-shadow(0 0 3px rgba(255, 255, 255, .333));
+        filter: drop-shadow(0 0 2px white);
     }
 
     .at-symbol {
         margin: 0 4px;
         font-weight: bold;
-        color: #666;
+        color: #999;
     }
 
     .btn {
@@ -159,7 +161,6 @@
         }
     }
   </style>
-
 </head>
 <body>
 <div id="calendar-container">
@@ -190,134 +191,22 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-const teams = [
-  { abbr:'no', league:'nfl' },
-  { abbr:'lsu', league:'college-football' },
-  { abbr:'tuln', league:'college-football' }
-];
-const season = 2025;
+let touchStartX = 0;
+let touchEndX = 0;
 
-async function fetchTeamSchedule(team, seasontype){
-  const url = `https://site.api.espn.com/apis/site/v2/sports/football/${team.league}/teams/${team.abbr}/schedule?season=${season}&seasontype=${seasontype}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.events.map(ev => {
-    const comp = ev.competitions[0].competitors;
-    const home = comp.find(c=>c.homeAway==='home');
-    const away = comp.find(c=>c.homeAway==='away');
-    const isoDate = ev.date;
-    const dt = new Date(isoDate);
-    const timeCST = dt.toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true });
-
-    return {
-        id: ev.id,
-        date: isoDate.split("T")[0],
-        time: timeCST,
-        location: ev.competitions[0].venue.fullName,
-        tv: ev.broadcasts?.[0]?.media?.shortName || '—',
-        homeTeam: home.team.displayName, homeAbv: home.team.abbreviation,
-        awayTeam: away.team.displayName, awayAbv: away.team.abbreviation,
-        homeLogo: home.team.logos[0].href, awayLogo: away.team.logos[0].href
-    };
-  });
-}
-
-async function getAllGames(){
-  const all = [];
-  for(let t of teams){
-    const pre = await fetchTeamSchedule(t, 1);
-    const reg = await fetchTeamSchedule(t, 2);
-    all.push(...pre, ...reg);
-  }
-  return all;
-}
-
-function openGameDetails(game) {
-  $('#gameModalLabel').html(`
-    <img src="${game.awayLogo}" alt="${game.awayTeam}">
-    <span>${game.awayTeam}</span>
-    <span style="margin: 0 8px; font-weight: 900;">@</span>
-    <img src="${game.homeLogo}" alt="${game.homeTeam}">
-    <span>${game.homeTeam}</span>
-  `);
-  $('#modal-body').html(`
-    <p><strong>Date:</strong> ${formatDateVerbose(game.date)}</p>
-    <p><strong>Time (CST):</strong> ${game.time}</p>
-    <p><strong>Location:</strong> ${game.location}</p>
-  `);
-  const modal = new bootstrap.Modal(document.getElementById('gameModal'));
-  modal.show();
-}
-
-let currentMonth = new Date();
-let games = [];
-
-function renderCalendar(){
-  const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
-  $('#cal-month-year').text(currentMonth.toLocaleString('default',{month:'long',year:'numeric'}));
-  const firstDay = new Date(y,m,1).getDay();
-  const days = new Date(y,m+1,0).getDate();
-  $('#cal-body').empty();
-  let row = $('<tr></tr>');
-  for(let i=0;i<firstDay;i++) row.append('<td></td>');
-  for(let d=1; d<=days; d++){
-    const dateStr = new Date(y,m,d).toISOString().split('T')[0];
-    const cell = $('<td></td>').append(`<div class="day-number">${d}</div>`);
-    const todays = games
-      .filter(g => g.date === dateStr)
-      .sort((a,b) => {
-        const parseTime = t => {
-          const [time, mod] = t.split(' ');
-          let [h,m] = time.split(':').map(Number);
-          if(mod === 'PM' && h !== 12) h += 12;
-          if(mod === 'AM' && h === 12) h = 0;
-          return h * 60 + m;
-        };
-        return parseTime(a.time) - parseTime(b.time);
-      });
-    todays.forEach(g=>{
-      const pair = $(`<div class="game-icon-pair" title="${g.awayTeam} @ ${g.homeTeam}"></div>`)
-        .append(`<img src="${g.awayLogo}" class="team-icon">`)
-        .append('<span class="at-symbol">@</span>')
-        .append(`<img src="${g.homeLogo}" class="team-icon">`)
-        .on('click',()=>openGameDetails(g));
-      cell.append(pair);
-      cell.append(`<div class="game-time">${g.time}</div>`);
-    });
-    row.append(cell);
-    if((firstDay+d)%7===0||d===days){ $('#cal-body').append(row); row=$('<tr></tr>'); }
-  }
-}
-
-function formatDateVerbose(dateStr) {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-
-  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  const dayName = days[date.getDay()];
-  const monthName = date.toLocaleString('default', { month: 'long' });
-  const dayNum = date.getDate();
-  const yearNum = date.getFullYear();
-
-  function nth(d) {
-    if (d > 3 && d < 21) return 'th';
-    switch (d % 10) {
-      case 1: return "st";
-      case 2: return "nd";
-      case 3: return "rd";
-      default: return "th";
-    }
-  }
-
-  return `${dayName}, ${monthName} ${dayNum}${nth(dayNum)}, ${yearNum}`;
-}
-
-$(async function(){
-  games = await getAllGames();
-  renderCalendar();
-  $('#cal-prev').click(()=>{ currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); });
-  $('#cal-next').click(()=>{ currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); });
+document.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
+document.addEventListener('touchend', e => {
+  touchEndX = e.changedTouches[0].screenX;
+  handleGesture();
 });
+
+function handleGesture() {
+  const dx = touchEndX - touchStartX;
+  if (Math.abs(dx) > 50) {
+    if (dx < 0) $('#cal-next').click();
+    else $('#cal-prev').click();
+  }
+}
 </script>
 </body>
 </html>
